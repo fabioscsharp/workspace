@@ -1,6 +1,7 @@
 # DealerDesk Architecture (current)
 
-**Updated**: 2026-11-15. Describes `src/dealerdesk` at commit `a2ba708`. Behaviour and
+**Updated**: 2026-11-16 (build and tests from spec 001). The application code is as at
+commit `a2ba708`. Behaviour and
 pricing rules are in `specs/000-baseline/spec.md`; assumptions and doc-versus-code
 conflicts are in `src/dealerdesk/assumptions.md`. This file is updated when the structure
 changes.
@@ -51,8 +52,22 @@ make 24, model 40, name 48, phone 20, email 64, date 11.
 
 ## Build and run
 
-- Build (Linux/macOS/WSL): `gcc -o dealerdesk *.c -lm` from the repo root. The README's
-  second build command (with `report.c`) is wrong (B-10).
+- Build (Linux/macOS/WSL): `make` from the repo root (`Makefile`, spec 001). It compiles
+  the explicit list `main.c calc.c dbfile.c screen.c` with `-lm`, so it is equivalent to
+  `gcc -o dealerdesk *.c -lm`, which still works. `CC` defaults to `cc` and `CFLAGS` to
+  `-Wall` (no `-Werror`). The README's second build command (with `report.c`) is wrong (B-10).
+- Tests: `make test` (= `make unit` + `make e2e`). `make test-mutation` checks that a
+  wrong VAT constant fails the suite, and `make golden` regenerates goldens (guarded to
+  `a2ba708`). Layout:
+  - `tests/unit/test_calc.c` links `calc.c` unchanged (`%.2f` case table).
+  - `tests/e2e/run.sh` feeds `tests/e2e/scenarios/NN-name/input` to the binary on a temp
+    copy of a fixture (`sample` = `data/`, `empty`, `full`), normalises the output and
+    data (ANSI clear-screen, version, run date), then compares the output with
+    `expected.out` and the data byte for byte with `expected-data/`.
+
+  Details: `tests/README.md`.
+- `.gitattributes` forces LF line endings (`* text=auto eol=lf`), so Windows checkouts
+  keep the shell scripts runnable and the data byte-identical to Linux.
 - Run from the repo root so `./data` resolves. Restore sample data with
   `git checkout -- data` (inside the submodule).
 - Historical Windows releases used the Borland compiler (not available here).
@@ -74,7 +89,7 @@ the version string is hard-coded in `screen.c`.
 
 ## Planned structural changes (see specs)
 
-- `001-build-and-tests`: build entry point and test harness (characterization tests).
+- `001-build-and-tests`: **done 2026-11-16**. `Makefile` and `tests/`, see "Build and run".
 - `003-ci-and-release`: CI workflow, release script and artifact (depends on 001).
 - `002-fleet-discount`: a fleet flag on `CUSTOMER`, a fleet term in `calc_quote`, a new
   trailing field in `customers.dat` and `invoices.dat` (always written), loaders that keep

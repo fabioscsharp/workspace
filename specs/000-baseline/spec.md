@@ -126,7 +126,10 @@ Worked examples (from the sample data):
 - **BR-080**: Single process, single user, no locking: hand-editing `.dat` files while the
   app runs is unsupported.
 - **BR-081**: Capacity limits: 500 vehicles, 500 customers, 2000 invoices (C-10).
-- **BR-082**: No automated tests, no CI, build and release are manual.
+- **BR-082**: Build is `make` (Makefile) and `make test` runs the characterization
+  suite in `tests/` (unit and end-to-end, with goldens taken from `a2ba708`); both were
+  added by spec 001 on 2026-11-16 and change no behaviour. The build compiles with no
+  warnings under gcc `-Wall`. There is no CI, and release is manual until spec 003.
 
 ## Known defects and oddities (preserved, not fixed)
 

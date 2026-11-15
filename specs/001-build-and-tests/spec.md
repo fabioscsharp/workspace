@@ -5,7 +5,7 @@
 **Created**: 2026-11-15 (split 2026-11-15: CI and release moved to `003-ci-and-release`)
 
 **Status**: Draft; the version question (B-06) and compiler style (B-11) are decided
-2026-11-15. One clarification remains (Makefile) before `/speckit-plan`.
+2026-11-15. Clarified 2026-11-15 (see Clarifications).
 
 **Baseline**: characterizes `specs/000-baseline/spec.md` (every `BR-` item gets a test);
 changes no `BR-` behaviour. Structure: `docs/architecture.md`.
@@ -17,6 +17,19 @@ this spec. `002-fleet-discount` depends on this spec for its safety net.
 what matters most and how far to take it." Today there are no tests and no reliable build.
 This spec covers the part everything else needs: a repeatable build and tests that pin
 today's behaviour. CI and release automation are out of scope here.
+
+## Clarifications
+
+### Session 2026-11-15
+
+- Q: Is a Makefile the single build and test entry point? → A: Yes. `make` builds
+  `dealerdesk` (same `gcc ... *.c -lm` command), `make test` runs the full suite.
+- Q: How do tests handle the sale date stamped from the system clock (`main.c:395`)? →
+  A: The harness normalises the run date (`YYYY-MM-DD`) to a placeholder in screen output
+  and written data files before comparing; no app change, no fake-clock tool.
+- Q: How do tests check `data/*.dat` after scenarios that change data? → A: Every data
+  file is compared byte for byte with a committed golden copy (only the run date
+  normalised).
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -78,6 +91,9 @@ the committed sample data is untouched afterwards.
 - ANSI clear-screen codes in the output (`\033[2J\033[H`) must not break comparisons.
 - The version string in the header (`v2.3`, becomes `v2.4` in spec 002) is normalised by
   tests so the bump does not break them.
+- A sale stamps the invoice with today's date (`main.c:395`): tests replace the run date
+  with a placeholder in output and in written data files before comparing; existing
+  invoice dates in sample data are compared as-is.
 - Input ends unexpectedly (EOF): the app exits with status 0 (`read_line`), tests must
   not hang.
 - Floating-point rounding at half-cent boundaries (`rnd2`): expected values come from
@@ -89,10 +105,13 @@ the committed sample data is untouched afterwards.
 
 ### Functional Requirements
 
-- **FR-001**: The repo MUST provide one documented command that builds `dealerdesk` on
-  Linux/macOS/WSL with gcc or clang (see assumptions F-01, B-10).
-- **FR-002**: The build MUST NOT change application behaviour or require source changes
-  to existing application files beyond what is needed to expose `calc_quote` to tests.
+- **FR-001**: The repo MUST provide a `Makefile` whose default target (`make`) builds
+  `dealerdesk` on Linux/macOS/WSL with gcc or clang, from the same sources and libraries
+  as `gcc -o dealerdesk *.c -lm`. Only warning flags (for example `-Wall`) may be added,
+  and `CC`/`CFLAGS` can be overridden (see assumptions F-01, B-10).
+- **FR-002**: The build and tests MUST NOT change application behaviour or require any
+  change to existing application files. `calc_quote` and `rnd2` are already public in
+  `calc.h`, so unit tests link `calc.c` unchanged (F-13).
 - **FR-003**: There MUST be unit tests for `calc_quote` and `rnd2` covering customer
   types R and T, discount clamping, trade-in, and rounding, with expected values captured
   from the unmodified code (F-04).
@@ -101,10 +120,14 @@ the committed sample data is untouched afterwards.
   add/find, quote, sell, invoice list and view, help, invalid option, EOF.
 - **FR-005**: Tests MUST run against a temporary copy of the data and leave the working
   tree clean (C-13).
+- **FR-005a**: After every end-to-end scenario that writes data (add vehicle, change
+  price, reserve/release, add customer, sell), each `data/*.dat` file in the temporary
+  copy MUST equal its committed golden copy byte for byte, with only the run date of new
+  sales normalised.
 - **FR-006**: There MUST be a golden-file check that sample data loads and prints
   unchanged, proving "existing data files load without manual conversion".
-- **FR-007**: The whole suite MUST run with one documented command (suitable to be called
-  from CI later, see `003-ci-and-release`).
+- **FR-007**: The whole suite MUST run with `make test` (builds first if needed; suitable
+  to be called from CI later, see `003-ci-and-release`).
 - **FR-008**: Tests MUST normalise the version string; this feature keeps the on-screen
   header at `v2.3` (it changes no behaviour). The bump to `v2.4` belongs to spec 002 (B-06).
 - **FR-009**: Any application code touched (for example to expose pricing to tests) MUST use
@@ -115,8 +138,8 @@ the committed sample data is untouched afterwards.
 
 - **Characterization test**: a recorded input script plus the expected output, generated
   from the code at commit `a2ba708` before any feature work.
-- **Golden output**: the committed text output for a scenario, normalised for ANSI codes
-  and the version string.
+- **Golden output**: the committed text output for a scenario, normalised for ANSI codes,
+  the version string and the run date of new sales.
 
 ## Success Criteria *(mandatory)*
 
@@ -134,7 +157,7 @@ the committed sample data is untouched afterwards.
 
 ## Assumptions
 
-See `src/dealerdesk/assumptions.md`, section F (F-01 to F-04, F-07) and sections B/C:
+See `src/dealerdesk/assumptions.md`, section F (F-01 to F-04, F-07, F-10 to F-13) and sections B/C:
 
 - Linux/macOS/WSL with gcc or clang is the supported dev platform; Windows/Borland
   release builds stay out of scope (F-02).
@@ -144,5 +167,4 @@ See `src/dealerdesk/assumptions.md`, section F (F-01 to F-04, F-07) and sections
   runtime dependency (constitution VII).
 - Version: current is 2.3; the fleet release is 2.4 (B-06). Application code uses
   conservative C89 style (B-11).
-- [NEEDS CLARIFICATION: Is a `Makefile` acceptable as the single build entry point, or is
-  another build tool preferred?]
+- Build and test entry point: a `Makefile` (`make`, `make test`); decided 2026-11-15.

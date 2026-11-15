@@ -59,7 +59,9 @@ Fixed-size tables and flat files are accepted constraints, not defects to fix he
 Current behaviour is specified in `specs/000-baseline/spec.md` and the structure in
 `docs/architecture.md`; every feature spec is a delta against them.
 
-- Language: C (gcc/clang). Build: `gcc -o dealerdesk *.c -lm` from the repository root.
+- Language: C (gcc/clang). Build: `make` from the repository root once spec 001 adds the
+  `Makefile`. It builds from the same sources and libraries as
+  `gcc -o dealerdesk *.c -lm`, which stays valid.
   Historical Windows releases used the Borland compiler, so avoid compiler-specific
   or C99+-only constructs in application code unless the spec accepts the risk.
 - Runtime: run from the repository root; data is read from and written to `./data`.
@@ -85,4 +87,4 @@ This constitution supersedes other practices in this workspace. Amendments requi
 note in the commit message and a version bump. Specs and plans MUST be checked against
 principles I, III and IV before implementation starts.
 
-**Version**: 1.0.0 | **Ratified**: 2026-11-15 | **Last Amended**: 2026-11-15
+**Version**: 1.0.1 | **Ratified**: 2026-11-15 | **Last Amended**: 2026-11-16
