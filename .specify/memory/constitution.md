@@ -1,50 +1,88 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+# DealerDesk Workspace Constitution
+
+This workspace holds the spec-kit artifacts (specs, plans, tasks) for **DealerDesk**,
+a menu-driven terminal application written in C for car dealerships. The code lives in
+the `src/dealerdesk` git submodule (remote: `fabioscsharp/dealerdesk`). Specs and
+tooling live here; application code changes are made inside the submodule.
+
+Only principles that are already true of the codebase or already agreed with the
+requester are listed. See `src/dealerdesk/BRIEF.md` for the source of the agreements.
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Behaviour Preservation (NON-NEGOTIABLE)
+Dealership staff rely on the app as it is. Apart from the requested feature, nobody
+should notice a change. Output for existing flows (quotes, invoices, listings, menus)
+MUST stay identical, "to the penny" for money. Any change that alters existing
+behaviour MUST be called out in the spec and approved before implementation.
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+### II. The Code Is the Source of Truth
+The documentation is known to be stale (see `src/dealerdesk/assumptions.md`). When
+README, help text, comments and code disagree, **the running code and the data files
+win**. Behaviour is pinned by tests before it is changed (characterization tests),
+not inferred from prose.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### III. Backward-Compatible Data Files (NON-NEGOTIABLE)
+`data/*.dat` are pipe-delimited flat files, written on every change and read by
+production binaries. Existing files MUST load with no manual conversion. New fields
+are appended at the end of a record, and a missing field MUST default to the
+pre-change behaviour. Old binaries (`dealerdesk.old` rollback) SHOULD still be able
+to read files written by the new binary without crashing. Sample data in `data/` is
+only modified when the spec says so.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### IV. Documentation Is Append-Only (NON-NEGOTIABLE)
+Existing documentation in `src/dealerdesk` (`README.md`, `BRIEF.md`, `RELEASE.txt`,
+`TICKET-142.md`, and any other existing doc) MUST NOT be edited or rewritten. Only
+new text may be appended, including revisions, which go in a clearly dated section at
+the bottom of the file. New documentation goes in new files, for example
+`assumptions.md`. Source-code comments are code, not documentation, but existing
+comments are not rewritten without need.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### V. Every Assumption Is Written Down
+Anything not explicit in the ticket, docs or code, and anything that raised a question,
+MUST be recorded in `src/dealerdesk/assumptions.md` with an ID, the reasoning and its
+status (open, confirmed, rejected). Specs reference assumption IDs rather than
+silently deciding.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+### VI. Tested, Reproducible Changes
+Changes ship with automated tests that run from one documented command and in CI.
+Pricing logic stays in `calc.c` and is unit-testable without the terminal. A change is
+not done until the characterization tests pass unchanged for non-affected behaviour.
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+### VII. Simplicity and Minimal Diffs
+Keep the existing structure (`main.c`, `calc.c`, `dbfile.c`, `screen.c`, `globals.h`),
+plain C, no new runtime dependencies, and no refactors unrelated to the feature.
+Fixed-size tables and flat files are accepted constraints, not defects to fix here.
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+## Technical Constraints
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+Current behaviour is specified in `specs/000-baseline/spec.md` and the structure in
+`docs/architecture.md`; every feature spec is a delta against them.
+
+- Language: C (gcc/clang). Build: `gcc -o dealerdesk *.c -lm` from the repository root.
+  Historical Windows releases used the Borland compiler, so avoid compiler-specific
+  or C99+-only constructs in application code unless the spec accepts the risk.
+- Runtime: run from the repository root; data is read from and written to `./data`.
+- Money is stored with two decimals (`%.2f`) and rounded with `rnd2()` (half up).
+- `|` is the field separator; input sanitisation replaces `|` with `/`.
+- Release is currently manual (`RELEASE.txt`): copy the binary to the file server,
+  keep `dealerdesk.old` for rollback.
+
+## Development Workflow
+
+- Spec-kit flow per change: `/speckit-specify` → `/speckit-clarify` → `/speckit-plan`
+  → `/speckit-tasks` → `/speckit-analyze` → `/speckit-implement` → `/speckit-converge`.
+- Work in the submodule on a feature branch; commit as you go (history is reviewed).
+  Commit the submodule first, then the workspace pointer bump.
+- Never leave modified `data/*.dat` behind after manual testing
+  (`git checkout -- data`).
+- The deliverable includes the agent setup (`CLAUDE.md`, specs, skills) and a
+  `NOTES.md` of at most two pages in the dealerdesk repo, as required by the brief.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+This constitution supersedes other practices in this workspace. Amendments require a
+note in the commit message and a version bump. Specs and plans MUST be checked against
+principles I, III and IV before implementation starts.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 1.0.0 | **Ratified**: 2026-11-15 | **Last Amended**: 2026-11-15
