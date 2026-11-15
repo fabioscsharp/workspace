@@ -1,8 +1,8 @@
-# Feature Specification: Reliable build, tests, CI and release for DealerDesk
+# Feature Specification: Reliable build and characterization tests for DealerDesk
 
-**Feature Branch**: `001-delivery-pipeline` (in `src/dealerdesk`)
+**Feature Branch**: `001-build-and-tests` (in `src/dealerdesk`)
 
-**Created**: 2026-11-15
+**Created**: 2026-11-15 (split 2026-11-15: CI and release moved to `003-ci-and-release`)
 
 **Status**: Draft; the version question (B-06) and compiler style (B-11) are decided
 2026-11-15. One clarification remains (Makefile) before `/speckit-plan`.
@@ -10,9 +10,13 @@
 **Baseline**: characterizes `specs/000-baseline/spec.md` (every `BR-` item gets a test);
 changes no `BR-` behaviour. Structure: `docs/architecture.md`.
 
+**Related**: `003-ci-and-release` (runs these tests in CI and automates releases) depends on
+this spec. `002-fleet-discount` depends on this spec for its safety net.
+
 **Input**: BRIEF.md task 1: "Improve how changes get delivered on this codebase. You decide
-what matters most and how far to take it." Today there are no tests, no CI, no reliable
-build, and releases are done by hand (`RELEASE.txt`).
+what matters most and how far to take it." Today there are no tests and no reliable build.
+This spec covers the part everything else needs: a repeatable build and tests that pin
+today's behaviour. CI and release automation are out of scope here.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -62,48 +66,8 @@ the committed sample data is untouched afterwards.
    written in the same format as before.
 4. **Given** a tests run, **Then** tests work on a temporary copy of `data/` and
    `git status` in the repo is clean afterwards.
-
----
-
-### User Story 3 - CI runs build and tests on every change (Priority: P2)
-
-Every push and pull request builds the app and runs the tests on a clean machine (GitHub
-Actions), with the result visible on the PR.
-
-**Why this priority**: the team does not trust changes; automatic evidence replaces
-nervous manual testing.
-
-**Independent Test**: push a branch with a deliberately wrong pricing constant and see CI
-fail; revert and see it pass.
-
-**Acceptance Scenarios**:
-
-1. **Given** a pull request, **When** CI runs, **Then** it builds with warnings enabled
-   and runs all tests, and fails if either step fails.
-2. **Given** a green run on the default branch, **Then** the built binary is available as
-   a CI artifact.
-
----
-
-### User Story 4 - Repeatable release steps (Priority: P3)
-
-The manual release checklist is turned into a script plus a CI-built artifact, so the
-steps that can be automated are, and the manual ones (copy to the file server, e-mail
-showrooms, rollback copy) are written down in a new file. The existing `RELEASE.txt` is
-only appended to, never rewritten.
-
-**Why this priority**: valuable but the team cannot be reached from here (no file server
-access).
-
-**Independent Test**: running the packaging step on a clean checkout yields a versioned
-archive containing the binary and the sample data, with the version taken from one place.
-
-**Acceptance Scenarios**:
-
-1. **Given** a tagged commit, **When** the release workflow runs, **Then** it uploads a
-   versioned binary artifact.
-2. **Given** `RELEASE.txt`, **When** this feature is done, **Then** its original content
-   is intact and any change is an appended, dated section at the bottom.
+5. **Given** a deliberately wrong pricing constant, **When** the tests run locally,
+   **Then** they fail.
 
 ---
 
@@ -112,18 +76,21 @@ archive containing the binary and the sample data, with the version taken from o
 - Tests run from a directory other than the repo root (the app reads `./data`): the test
   harness always sets the working directory.
 - ANSI clear-screen codes in the output (`\033[2J\033[H`) must not break comparisons.
+- The version string in the header (`v2.3`, becomes `v2.4` in spec 002) is normalised by
+  tests so the bump does not break them.
 - Input ends unexpectedly (EOF): the app exits with status 0 (`read_line`), tests must
   not hang.
 - Floating-point rounding at half-cent boundaries (`rnd2`): expected values come from
   the original implementation, not recomputation.
 - No `-Werror` on the legacy code: warnings are reported, not fatal, until cleaned up.
+- Tests are developed and run on Linux/WSL; WSL Ubuntu with gcc and make is available here.
 
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
 
 - **FR-001**: The repo MUST provide one documented command that builds `dealerdesk` on
-  Linux/macOS/WSL with gcc or clang (see assumption F-01, B-10).
+  Linux/macOS/WSL with gcc or clang (see assumptions F-01, B-10).
 - **FR-002**: The build MUST NOT change application behaviour or require source changes
   to existing application files beyond what is needed to expose `calc_quote` to tests.
 - **FR-003**: There MUST be unit tests for `calc_quote` and `rnd2` covering customer
@@ -136,26 +103,20 @@ archive containing the binary and the sample data, with the version taken from o
   tree clean (C-13).
 - **FR-006**: There MUST be a golden-file check that sample data loads and prints
   unchanged, proving "existing data files load without manual conversion".
-- **FR-007**: A CI workflow MUST build and run all tests on push and pull request and
-  fail on any error.
-- **FR-008**: A single place MUST define the version string used by the release step. This
-  feature keeps the on-screen header at `v2.3` (it changes no behaviour); the header becomes
-  `v2.4` only in the fleet release (spec 002, B-06). Tests normalise the version string so
-  the bump does not break them.
-- **FR-009**: The release procedure MUST be scripted/automated where possible; manual
-  steps are documented in a new file and `RELEASE.txt` is append-only. The checklist
-  includes backing up `data/` before deploying (E-05; the step itself is appended to
-  `RELEASE.txt` by spec 002).
-- **FR-011**: Any application code touched (for example to expose pricing to tests) MUST
-  use conservative C89 style (B-11); the test code is not bound by this.
+- **FR-007**: The whole suite MUST run with one documented command (suitable to be called
+  from CI later, see `003-ci-and-release`).
+- **FR-008**: Tests MUST normalise the version string; this feature keeps the on-screen
+  header at `v2.3` (it changes no behaviour). The bump to `v2.4` belongs to spec 002 (B-06).
+- **FR-009**: Any application code touched (for example to expose pricing to tests) MUST use
+  conservative C89 style (B-11); the test code is not bound by this.
 - **FR-010**: All assumptions made MUST be recorded in `assumptions.md`.
 
 ### Key Entities
 
 - **Characterization test**: a recorded input script plus the expected output, generated
   from the code at commit `a2ba708` before any feature work.
-- **Golden output**: the committed text output for a scenario, normalised for ANSI codes.
-- **Release artifact**: the built `dealerdesk` binary plus sample data, versioned.
+- **Golden output**: the committed text output for a scenario, normalised for ANSI codes
+  and the version string.
 
 ## Success Criteria *(mandatory)*
 
@@ -166,22 +127,19 @@ archive containing the binary and the sample data, with the version taken from o
 - **SC-002**: 100% of the pricing paths in `calc_quote` (R/T, clamp low/high, trade-in)
   are exercised by a test.
 - **SC-003**: Every menu screen reachable from the main menu is exercised by at least
-  one end-to-end scenario.
-- **SC-004**: Deliberately breaking a pricing constant makes the suite fail locally and
-  in CI.
+  one end-to-end scenario; each `BR-` item in the baseline maps to at least one test.
+- **SC-004**: Deliberately breaking a pricing constant makes the suite fail locally.
 - **SC-005**: Zero changes in the output of any scenario between the original code and
   the code after this feature.
 
 ## Assumptions
 
-See `src/dealerdesk/assumptions.md`, section F and sections B/C for evidence:
+See `src/dealerdesk/assumptions.md`, section F (F-01 to F-04, F-07) and sections B/C:
 
-- Linux/macOS/WSL with gcc or clang is the supported dev/CI platform; Windows/Borland
+- Linux/macOS/WSL with gcc or clang is the supported dev platform; Windows/Borland
   release builds stay out of scope (F-02).
 - Tests drive the real binary through stdin on a data copy, plus unit tests on `calc.c`
-  (F-03).
-- GitHub Actions is the CI provider (F-05); copying to the file server and e-mailing
-  showrooms remain manual (F-06).
+  (F-03); golden outputs come from the current code before any change (F-04).
 - Which test framework to use is a planning decision, not made here; prefer no new
   runtime dependency (constitution VII).
 - Version: current is 2.3; the fleet release is 2.4 (B-06). Application code uses

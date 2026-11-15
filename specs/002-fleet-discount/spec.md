@@ -5,7 +5,8 @@
 **Created**: 2026-11-15
 
 **Status**: Clarified (all questions in `src/dealerdesk/assumptions.md` section D and E are
-decided, 2026-11-15); ready for `/speckit-plan`. Depends on `001-delivery-pipeline`.
+decided, 2026-11-15); ready for `/speckit-plan`. Depends on `001-build-and-tests`; does not wait for
+`003-ci-and-release` (tests run locally until CI exists).
 
 **Baseline**: delta against `specs/000-baseline/spec.md`. Changes BR-002, BR-020, BR-021,
 BR-023, BR-030 to BR-034, BR-040 to BR-047, BR-050, BR-052 and BR-070; all other `BR-` items
@@ -175,8 +176,8 @@ fleet line and total equal the quote's.
   record (E-02). Tests compare files by parsed values, not bytes (E-06).
 - **FR-010**: The fleet marker `, Fleet` MUST be appended to the type text for fleet
   customers only, in the customer list and the quote/invoice-preview customer line (D-10).
-- **FR-011**: The feature MUST ship through the pipeline built in `001-delivery-pipeline`
-  (build, tests, CI) with new tests for fleet pricing, flag persistence, empty-field
+- **FR-011**: The feature MUST ship through the build and test suite from
+  `001-build-and-tests` (and CI from `003-ci-and-release` once it exists) with new tests for fleet pricing, flag persistence, empty-field
   loading and the invoice view.
 - **FR-012**: Existing documentation is not edited; changes are appended, dated, to the
   bottom of the relevant file; new rules are listed in `assumptions.md` (constitution IV, V).
