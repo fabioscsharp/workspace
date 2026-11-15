@@ -76,4 +76,6 @@ the version string is hard-coded in `screen.c`.
 
 - `001-delivery-pipeline`: build entry point, test harness, CI, release script.
 - `002-fleet-discount`: a fleet flag on `CUSTOMER`, a fleet term in `calc_quote`, a new
-  trailing field in `customers.dat` and `invoices.dat`, a menu action to set fleet status.
+  trailing field in `customers.dat` and `invoices.dat` (always written), loaders that keep
+  empty fields (split on every `|`), a menu action to set fleet status, and the header
+  version change to v2.4. Decisions: `src/dealerdesk/assumptions.md` sections B, D, E.

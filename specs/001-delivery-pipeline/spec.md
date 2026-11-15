@@ -4,7 +4,8 @@
 
 **Created**: 2026-11-15
 
-**Status**: Draft (run `/speckit-clarify` before planning)
+**Status**: Draft; the version question (B-06) and compiler style (B-11) are decided
+2026-11-15. One clarification remains (Makefile) before `/speckit-plan`.
 
 **Baseline**: characterizes `specs/000-baseline/spec.md` (every `BR-` item gets a test);
 changes no `BR-` behaviour. Structure: `docs/architecture.md`.
@@ -137,10 +138,16 @@ archive containing the binary and the sample data, with the version taken from o
   unchanged, proving "existing data files load without manual conversion".
 - **FR-007**: A CI workflow MUST build and run all tests on push and pull request and
   fail on any error.
-- **FR-008**: A single place MUST define the version string used by the release step; if
-  the on-screen version header is changed it is called out (B-06 open).
+- **FR-008**: A single place MUST define the version string used by the release step. This
+  feature keeps the on-screen header at `v2.3` (it changes no behaviour); the header becomes
+  `v2.4` only in the fleet release (spec 002, B-06). Tests normalise the version string so
+  the bump does not break them.
 - **FR-009**: The release procedure MUST be scripted/automated where possible; manual
-  steps are documented in a new file and `RELEASE.txt` is append-only.
+  steps are documented in a new file and `RELEASE.txt` is append-only. The checklist
+  includes backing up `data/` before deploying (E-05; the step itself is appended to
+  `RELEASE.txt` by spec 002).
+- **FR-011**: Any application code touched (for example to expose pricing to tests) MUST
+  use conservative C89 style (B-11); the test code is not bound by this.
 - **FR-010**: All assumptions made MUST be recorded in `assumptions.md`.
 
 ### Key Entities
@@ -177,7 +184,7 @@ See `src/dealerdesk/assumptions.md`, section F and sections B/C for evidence:
   showrooms remain manual (F-06).
 - Which test framework to use is a planning decision, not made here; prefer no new
   runtime dependency (constitution VII).
-- [NEEDS CLARIFICATION: Should the on-screen version header be bumped as part of this
-  work? It reads v2.3 while README says 2.1 (B-06).]
+- Version: current is 2.3; the fleet release is 2.4 (B-06). Application code uses
+  conservative C89 style (B-11).
 - [NEEDS CLARIFICATION: Is a `Makefile` acceptable as the single build entry point, or is
   another build tool preferred?]
