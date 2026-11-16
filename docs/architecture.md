@@ -1,6 +1,7 @@
 # DealerDesk Architecture (current)
 
-**Updated**: 2026-11-15. Describes `src/dealerdesk` at commit `a2ba708`. Behaviour and
+**Updated**: 2026-11-16 (spec 001 build and tests; spec 002 fleet discount, v2.4). The
+application code is `a2ba708` plus the spec 002 changes. Behaviour and
 pricing rules are in `specs/000-baseline/spec.md`; assumptions and doc-versus-code
 conflicts are in `src/dealerdesk/assumptions.md`. This file is updated when the structure
 changes.
@@ -16,11 +17,11 @@ standard library and `libm`.
 
 | File | Responsibility |
 |------|----------------|
-| `main.c` | `main()`, all menus and screens, quote/invoice printing, sale flow, lookups (`find_veh`, `find_cust`). Defines the global tables and ID counters. |
-| `calc.c` / `calc.h` | Pricing. `calc_quote(QUOTE*, list, cust_type, disc_pct, tradein)` fills the `QUOTE` struct; `rnd2()` rounds to pennies. Pure functions, no I/O: the only unit-testable seam today. |
-| `dbfile.c` / `dbfile.h` | `load_all()` and `save_stock/customers/invoices/ids()`. Parses with `strtok` on `|`, writes with `fprintf`. `DATA_DIR` is `"data/"`. |
+| `main.c` | `main()`, all menus and screens (incl. `set_fleet_status`, Customers option 4), quote/invoice printing, `type_txt()` (the `, Fleet` marker), sale flow, lookups (`find_veh`, `find_cust`). Defines the global tables and ID counters. |
+| `calc.c` / `calc.h` | Pricing. `calc_quote(QUOTE*, list, cust_type, fleet, disc_pct, tradein)` fills the `QUOTE` struct (incl. `fleet_disc`, spec 002); `rnd2()` rounds to pennies. Pure functions, no I/O: unit-tested directly. |
+| `dbfile.c` / `dbfile.h` | `load_all()` and `save_stock/customers/invoices/ids()`. `load_stock` parses with `strtok` on `|`. `load_customers` and `load_invoices` use `next_field()`, which keeps empty fields (spec 002, E-04). Writes with `fprintf`. `DATA_DIR` is `"data/"`. |
 | `screen.c` / `screen.h` | Terminal helpers: `cls` (ANSI `\033[2J\033[H`), `header` (prints version), `read_line` (fgets, strips newline, replaces `|` with `/`, exits on EOF), `read_int`, `read_money`, `confirm`, `pause_enter`. |
-| `globals.h` | `VEHICLE`, `CUSTOMER`, `INVOICE` structs, table sizes, status constants, `extern` declarations. |
+| `globals.h` | `VEHICLE`, `CUSTOMER` (incl. `fleet`), `INVOICE` (incl. `fleet_disc`) structs, table sizes, status constants, `extern` declarations. |
 
 Dependencies: `main.c` uses all modules; `dbfile.c` uses `globals.h`; `calc.c` is standalone
 (needs `-lm` for `floor`); `screen.c` is standalone.
@@ -35,8 +36,8 @@ rewrites the whole file.
 | File | Record | Notes |
 |------|--------|-------|
 | `stock.dat` | `id\|plate\|make\|model\|year\|mileage\|cost\|price\|status` | status 0 IN STOCK, 1 RESERVED, 2 SOLD; money `%.2f` |
-| `customers.dat` | `id\|name\|phone\|email\|type` | type `R` retail, `T` trade; missing type loads as `R` |
-| `invoices.dat` | `no\|date\|veh_id\|cust_id\|list\|disc\|net\|vat\|fees\|tradein\|total` | `disc` = all discounts combined; `fees` = delivery + registration; date `YYYY-MM-DD` |
+| `customers.dat` | `id\|name\|phone\|email\|type\|fleet` | type `R` retail, `T` trade, missing or empty loads as `R`. `fleet` (v2.4, always written) is fleet only if exactly `1`; 5-field rows load as non-fleet |
+| `invoices.dat` | `no\|date\|veh_id\|cust_id\|list\|disc\|net\|vat\|fees\|tradein\|total\|fleet_disc` | `disc` = all discounts combined (incl. fleet); `fees` = delivery + registration; date `YYYY-MM-DD`; `fleet_disc` (v2.4, always written), missing = 0 |
 | `next_ids.dat` | `vehicle=N`, `customer=N`, `invoice=N` | read with `sscanf`; defaults 1000, 2000, 50000 |
 
 Table limits: 500 vehicles, 500 customers, 2000 invoices. Struct field sizes: plate 12,
@@ -47,12 +48,31 @@ make 24, model 40, name 48, phone 20, email 64, date 11.
 1. `main()` calls `load_all()` then loops over the main menu.
 2. Submenus (`stock_menu`, `customer_menu`, `invoice_menu`) loop until option 0.
 3. A sale builds a quote with `calc_quote`, prints it, asks for confirmation, copies the
-   `QUOTE` into an `INVOICE`, marks the vehicle SOLD, then saves invoices, stock and ids.
+   `QUOTE` into an `INVOICE` (`disc` = trade + fleet + salesman, `fleet_disc` separately),
+   marks the vehicle SOLD, then saves invoices, stock and ids.
 
 ## Build and run
 
-- Build (Linux/macOS/WSL): `gcc -o dealerdesk *.c -lm` from the repo root. The README's
-  second build command (with `report.c`) is wrong (B-10).
+- Build (Linux/macOS/WSL): `make` from the repo root (`Makefile`, spec 001). It compiles
+  the explicit list `main.c calc.c dbfile.c screen.c` with `-lm`, so it is equivalent to
+  `gcc -o dealerdesk *.c -lm`, which still works. `CC` defaults to `cc` and `CFLAGS` to
+  `-Wall` (no `-Werror`). The README's second build command (with `report.c`) is wrong (B-10).
+- Tests: `make test` (= `make unit` + `make e2e`). `make test-mutation` checks that a
+  wrong VAT constant fails the suite, and `make golden` regenerates goldens (guarded to
+  `a2ba708`). Layout:
+  - `tests/unit/test_calc.c` links `calc.c` unchanged (`%.2f` case table).
+  - `tests/e2e/run.sh` feeds `tests/e2e/scenarios/NN-name/input` to the binary on a temp
+    copy of a fixture (`sample` = `data/`, `empty`, `full`, or a committed directory
+    under `tests/e2e/fixtures/`, such as `fleet` and `legacy-gaps`), normalises the output and
+    data (ANSI clear-screen, version, run date), then compares the output with
+    `expected.out` and the data byte for byte with `expected-data/`.
+
+  - `make test-compat` builds the `a2ba708` binary from git and checks that it still reads
+    files written by v2.4 (spec 002).
+
+  Details: `tests/README.md`.
+- `.gitattributes` forces LF line endings (`* text=auto eol=lf`), so Windows checkouts
+  keep the shell scripts runnable and the data byte-identical to Linux.
 - Run from the repo root so `./data` resolves. Restore sample data with
   `git checkout -- data` (inside the submodule).
 - Historical Windows releases used the Borland compiler (not available here).
@@ -74,9 +94,12 @@ the version string is hard-coded in `screen.c`.
 
 ## Planned structural changes (see specs)
 
-- `001-build-and-tests`: build entry point and test harness (characterization tests).
+- `001-build-and-tests`: **done 2026-11-16**. `Makefile` and `tests/`, see "Build and run".
 - `003-ci-and-release`: CI workflow, release script and artifact (depends on 001).
-- `002-fleet-discount`: a fleet flag on `CUSTOMER`, a fleet term in `calc_quote`, a new
-  trailing field in `customers.dat` and `invoices.dat` (always written), loaders that keep
-  empty fields (split on every `|`), a menu action to set fleet status, and the header
-  version change to v2.4. Decisions: `src/dealerdesk/assumptions.md` sections B, D, E.
+- `002-fleet-discount`: **done 2026-11-16** (v2.4). The work:
+  - a fleet flag on `CUSTOMER`, and a fleet term in `calc_quote`;
+  - a new trailing field in `customers.dat` and `invoices.dat`, always written;
+  - loaders that keep empty fields;
+  - the menu action `4. Set fleet status`, and the header version v2.4.
+
+  Decisions are in `src/dealerdesk/assumptions.md` sections B, D, E (D-18 to D-27, E-07).
