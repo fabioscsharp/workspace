@@ -113,8 +113,8 @@ binary's first save (E-05).
 ## Planned structural changes (see specs)
 
 - `001-build-and-tests`: **done 2026-11-16**. `Makefile` and `tests/`, see "Build and run".
-- `003-ci-and-release`: **done 2026-11-16** (merged to `master` of the dealerdesk repo; the
-  first real release is pending, F-38). `.github/workflows/ci.yml` and `release.yml`,
+- `003-ci-and-release`: **done 2026-11-16** (merged to `master` of the dealerdesk repo;
+  release 2.4 is published, F-41). `.github/workflows/ci.yml` and `release.yml`,
   `scripts/`, `tests/release/`, `RELEASING.md`; see "Build and run" and "Release".
 - `002-fleet-discount`: **done 2026-11-16** (v2.4). The work:
   - a fleet flag on `CUSTOMER`, and a fleet term in `calc_quote`;

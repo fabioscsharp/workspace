@@ -118,7 +118,7 @@ Independent Test).
 - [X] T022 [P] [US2] Lint `src/dealerdesk/.github/workflows/release.yml` with `actionlint` if available; fix every finding, or note that it was not linted.
 - [X] T023 [US2] Run quickstart section 2 locally in WSL: `sh scripts/package.sh 2.4`, `(cd dist && sha256sum -c dealerdesk-2.4.zip.sha256)`, `unzip -l dist/dealerdesk-2.4.zip` (expect `dealerdesk-2.4/dealerdesk` and the four `data/*.dat`), and `sh scripts/release-notes.sh 2.4` (expect the backup step and the rollback warning). Delete `dist/` afterwards and confirm `git status --porcelain` is the same as before.
 - [X] T024 [US2] Append a dated section to the bottom of `src/dealerdesk/RELEASE.txt` that points to `RELEASING.md` and to the CI and release workflows, and keeps the backup and rollback wording consistent (FR-003, FR-004). Then confirm nothing was removed or changed: `git diff -- RELEASE.txt | grep '^-' | grep -v '^---'` prints nothing (SC-004).
-- [ ] T025 [US2] **(needs approval)** Release the existing tag `2.4` (SC-003, FR-005; decided 2026-11-16: reuse it, do not wait for the next version; A1). Facts checked 2026-11-16: `2.4` is a lightweight tag on commit `49fb770`, which has no `.github/`, and the tag is already on the remote, so pushing it again fires no event and a tag push cannot start the workflow. Steps: (a) push the branch and merge it into `master`; (b) in `src/dealerdesk` prove the application is unchanged since the tag: `git diff 2.4 HEAD -- '*.c' '*.h' data` must print nothing, otherwise stop and tell the owner; (c) run the `Release` workflow **by hand** from `master` with version `2.4` (`gh release create` uses the existing tag as is, and never moves it); (d) confirm the GitHub Release has the zip, the `.sha256` file and the notes, then download both and run `sha256sum -c`. Do not force-move or delete the published tag. The tag-push path (US2 scenario 1) is first proved at the next version tag, which has `release.yml` in its commit (see T026).
+- [X] T025 [US2] **(needs approval)** Release the existing tag `2.4` (SC-003, FR-005; decided 2026-11-16: reuse it, do not wait for the next version; A1). Facts checked 2026-11-16: `2.4` is a lightweight tag on commit `49fb770`, which has no `.github/`, and the tag is already on the remote, so pushing it again fires no event and a tag push cannot start the workflow. Steps: (a) push the branch and merge it into `master`; (b) in `src/dealerdesk` prove the application is unchanged since the tag: `git diff 2.4 HEAD -- '*.c' '*.h' data` must print nothing, otherwise stop and tell the owner; (c) run the `Release` workflow **by hand** from `master` with version `2.4` (`gh release create` uses the existing tag as is, and never moves it); (d) confirm the GitHub Release has the zip, the `.sha256` file and the notes, then download both and run `sha256sum -c`. Do not force-move or delete the published tag. The tag-push path (US2 scenario 1) is first proved at the next version tag, which has `release.yml` in its commit (see T026).
 - [ ] T026 [US2] **(needs approval)** Guards (quickstart section 6, run after T025): (a) run the `Release` workflow by hand with version `9.9` and confirm it fails at the version step with nothing published and no tag created; (b) run it again with `2.4` and confirm it fails with "Release already exists" and changes nothing; (c) also try a hostile input such as `2.4; echo pwned` and confirm it is rejected by the version check without running the extra command (A3). The paths "a manual run creates a new tag" and "a tag push starts the release" cannot be exercised with `2.4`; they are proved at the next real version (or on a throwaway repository) and recorded in the Implementation notes.
 
 **Checkpoint**: US1 and US2 both work. The release process is a tag or one manual run.
@@ -269,3 +269,19 @@ Independent Test).
 - T029: `specs/000-baseline/spec.md` BR-082 updated (CI and release workflow exist).
 - T030: `NOTES.md` rewritten to the four sections the brief requires, 799 words (about two pages).
 - Still open: T025 and T026 (first release, F-38), T031 to T033 (final run, analyse, commits).
+
+### 2026-11-16 (release 2.4): T025 done, T026 partly proved
+
+- **T025:** the empty Release "V 2.4" was deleted with the owner's approval (the tag `2.4` stayed at
+  `49fb770`), and the `Release` workflow was run by hand from `master` (`28d376b`) with version `2.4`.
+  Before that, `git diff 2.4 origin/master -- '*.c' '*.h' data` was empty. Run 43868527799 passed
+  every step and published Release "DealerDesk 2.4" with `dealerdesk-2.4.zip` (13875 B),
+  `dealerdesk-2.4.zip.sha256` and the notes; GitHub recorded the SHA256 digests. The zip was not
+  downloaded or checked with `sha256sum -c` here.
+- **Earlier runs:** run 43866726620 stopped at the existing-release guard (as designed, the version
+  check before it passed); run 43866935324 stayed "queued" with no jobs for 10+ minutes and was
+  abandoned (a GitHub queue problem; the cancel call said "already completed").
+- **T026, still open:** no run with a wrong version (`9.9`) or hostile input yet, and no rerun of `2.4`
+  now that a real Release exists. The paths "tag push starts the workflow" and "a manual run creates
+  a new tag" need a new version. Recorded as F-41 in `assumptions.md`.
+- **Open:** T031 to T033 (final check, `/speckit-analyze`, commits).
