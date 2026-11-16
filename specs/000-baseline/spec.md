@@ -160,7 +160,10 @@ Fleet examples (v2.4, `tests/unit/test_calc.c`):
 - **BR-082**: Build is `make` (Makefile) and `make test` runs the characterization
   suite in `tests/` (unit and end-to-end, with goldens taken from `a2ba708`); both were
   added by spec 001 on 2026-11-16 and change no behaviour. The build compiles with no
-  warnings under gcc `-Wall`. There is no CI, and release is manual until spec 003.
+  warnings under gcc `-Wall`. Since 2026-11-16 (spec 003) CI runs these checks on every
+  pull request and every push to `master` (`.github/workflows/ci.yml`), and a release
+  workflow builds a versioned package; deploying to the file server stays manual. Neither
+  changes any behaviour.
 
 ## Known defects and oddities (preserved, not fixed)
 

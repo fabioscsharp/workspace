@@ -1,6 +1,7 @@
 # DealerDesk Architecture (current)
 
-**Updated**: 2026-11-16 (spec 001 build and tests; spec 002 fleet discount, v2.4). The
+**Updated**: 2026-11-16 (spec 001 build and tests; spec 002 fleet discount, v2.4; spec 003
+CI and release). The
 application code is `a2ba708` plus the spec 002 changes. Behaviour and
 pricing rules are in `specs/000-baseline/spec.md`; assumptions and doc-versus-code
 conflicts are in `src/dealerdesk/assumptions.md`. This file is updated when the structure
@@ -69,8 +70,16 @@ make 24, model 40, name 48, phone 20, email 64, date 11.
 
   - `make test-compat` builds the `a2ba708` binary from git and checks that it still reads
     files written by v2.4 (spec 002).
+  - `make test-release` tests the release scripts (spec 003); its zip case needs `zip`
+    and is skipped locally without it, but never in CI.
 
   Details: `tests/README.md`.
+- Checks and CI (spec 003): `sh scripts/check.sh` is the one list of checks: `make test`,
+  `make test-mutation`, `make test-compat`, `make test-release`, then it verifies that
+  `git status --porcelain` is the same after as before. `.github/workflows/ci.yml` runs it on
+  every pull request and every push to `master`, once with gcc and once with clang, on
+  Ubuntu with the full git history. The aggregate job `build-and-test` is the required
+  check on `master` (a GitHub setting, see `RELEASING.md` and F-25, F-36).
 - `.gitattributes` forces LF line endings (`* text=auto eol=lf`), so Windows checkouts
   keep the shell scripts runnable and the data byte-identical to Linux.
 - Run from the repo root so `./data` resolves. Restore sample data with
@@ -79,10 +88,19 @@ make 24, model 40, name 48, phone 20, email 64, date 11.
 
 ## Release (today)
 
-Manual: build, smoke test with sample data, rename the old binary on
+Automated (spec 003): `.github/workflows/release.yml` starts from a new plain version tag
+(for example `2.5`) or by hand with a version, and checks it against the version in the
+`screen.c` header (`scripts/version.sh`, the single source of the version). It then runs
+`scripts/check.sh`, builds `dealerdesk-<version>.zip` (the Linux binary plus the committed
+sample `data/`) and a SHA256 file with `scripts/package.sh`, takes the notes from the marked
+block of `RELEASING.md` (`scripts/release-notes.sh`), and publishes a GitHub Release. It
+refuses to touch an existing Release, and an existing tag is used as it is. The binary is
+built for Linux only (F-24); a Windows build is deferred (F-31).
+
+Still manual (`RELEASE.txt`, `RELEASING.md`): back up `data/`, rename the old binary on
 `\\fileserver01\apps\dealerdesk\` to `dealerdesk.old`, copy the new one, e-mail the
-showrooms, copy `.old` back to roll back (`RELEASE.txt`). No versioning source of truth:
-the version string is hard-coded in `screen.c`.
+showrooms, copy `.old` back to roll back. Rolling back loses fleet data on the old
+binary's first save (E-05).
 
 ## Constraints and design decisions in force
 
@@ -95,7 +113,9 @@ the version string is hard-coded in `screen.c`.
 ## Planned structural changes (see specs)
 
 - `001-build-and-tests`: **done 2026-11-16**. `Makefile` and `tests/`, see "Build and run".
-- `003-ci-and-release`: CI workflow, release script and artifact (depends on 001).
+- `003-ci-and-release`: **done 2026-11-16** (merged to `master` of the dealerdesk repo; the
+  first real release is pending, F-38). `.github/workflows/ci.yml` and `release.yml`,
+  `scripts/`, `tests/release/`, `RELEASING.md`; see "Build and run" and "Release".
 - `002-fleet-discount`: **done 2026-11-16** (v2.4). The work:
   - a fleet flag on `CUSTOMER`, and a fleet term in `calc_quote`;
   - a new trailing field in `customers.dat` and `invoices.dat`, always written;
